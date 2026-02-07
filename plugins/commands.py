@@ -52,21 +52,12 @@ async def start(client, message):
                 return await message.reply("<b>ʟɪɴᴋ ᴇxᴘɪʀᴇᴅ ᴛʀʏ ᴀɢᴀɪɴ...</b>")  
 
             ist_timezone = pytz.timezone('Asia/Kolkata')
-            if await db.user_verified(user_id):
-                key = "third_time_verified"
-            else:
-                key = "second_time_verified" if await db.is_user_verified(user_id) else "last_verified"
+            key = "last_verified"
             current_time = datetime.now(tz=ist_timezone)
             result = await db.update_notcopy_user(user_id, {key:current_time})
             await db.update_verify_id_info(user_id, verify_id, {"verified":True})
-            if key == "third_time_verified": 
-                num = 3 
-            else: 
-                num =  2 if key == "second_time_verified" else 1 
-            if key == "third_time_verified": 
-                msg = script.THIRDT_VERIFY_COMPLETE_TEXT
-            else:
-                msg = script.SECOND_VERIFY_COMPLETE_TEXT if key == "second_time_verified" else script.VERIFY_COMPLETE_TEXT
+            num = 1
+            msg = script.VERIFY_COMPLETE_TEXT
             if message.command[1].startswith('sendall'):
                 verifiedfiles = f"https://telegram.me/{temp.U_NAME}?start=allfiles_{grp_id}_{file_id}"
             else:
@@ -78,7 +69,7 @@ async def start(client, message):
             reply_markup=InlineKeyboardMarkup(btn)
             dlt=await m.reply_photo(
                 photo=(VERIFY_IMG),
-                caption=msg.format(message.from_user.mention, get_readable_time(TWO_VERIFY_GAP)),
+                caption=msg.format(message.from_user.mention),
                 reply_markup=reply_markup,
                 parse_mode=enums.ParseMode.HTML
             )
@@ -287,30 +278,28 @@ async def start(client, message):
                 grp_id = int(grp_id)
                 user_verified = await db.is_user_verified(user_id)
                 settings = await get_settings(grp_id)
-                is_second_shortener = await db.use_second_shortener(user_id, settings.get('verify_time', TWO_VERIFY_GAP)) 
-                is_third_shortener = await db.use_third_shortener(user_id, settings.get('third_verify_time', THREE_VERIFY_GAP))
-                if settings.get("is_verify", IS_VERIFY) and (not user_verified or is_second_shortener or is_third_shortener):
+                if settings.get("is_verify", IS_VERIFY) and not user_verified:
                     verify_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=7))
                     await db.create_verify_id(user_id, verify_id)
                     temp.VERIFICATIONS[user_id] = grp_id
                     if message.command[1].startswith('allfiles'):
-                        verify = await get_shortlink(f"https://telegram.me/{temp.U_NAME}?start=sendall_{user_id}_{verify_id}_{file_id}", grp_id, is_second_shortener, is_third_shortener)
+                        verify = await get_shortlink(
+                            f"https://telegram.me/{temp.U_NAME}?start=sendall_{user_id}_{verify_id}_{file_id}",
+                            grp_id
+                        )
                     else:
-                        verify = await get_shortlink(f"https://telegram.me/{temp.U_NAME}?start=notcopy_{user_id}_{verify_id}_{file_id}", grp_id, is_second_shortener, is_third_shortener)
-                    if is_third_shortener:
-                        howtodownload = settings.get('tutorial_3', TUTORIAL_3)
-                    else:
-                        howtodownload = settings.get('tutorial_2', TUTORIAL_2) if is_second_shortener else settings.get('tutorial', TUTORIAL)
+                        verify = await get_shortlink(
+                            f"https://telegram.me/{temp.U_NAME}?start=notcopy_{user_id}_{verify_id}_{file_id}",
+                            grp_id
+                        )
+                    howtodownload = settings.get('tutorial', TUTORIAL)
                     buttons = [[
                         InlineKeyboardButton(text="♻️ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ᴠᴇʀɪꜰʏ ♻️", url=verify)
                     ],[
                         InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=howtodownload)
                     ]]
                     reply_markup=InlineKeyboardMarkup(buttons)
-                    if await db.user_verified(user_id): 
-                        msg = script.THIRDT_VERIFICATION_TEXT
-                    else:            
-                        msg = script.SECOND_VERIFICATION_TEXT if is_second_shortener else script.VERIFICATION_TEXT
+                    msg = script.VERIFICATION_TEXT
                     n=await m.reply_text(
                         text=msg.format(message.from_user.mention),
                         protect_content = True,
@@ -1054,7 +1043,7 @@ async def save_caption(client, message):
     await client.send_message(LOG_API_CHANNEL, f"#Set_Caption\n\nɢʀᴏᴜᴘ ɴᴀᴍᴇ : {title}\n\nɢʀᴏᴜᴘ ɪᴅ: {grp_id}\nɪɴᴠɪᴛᴇ ʟɪɴᴋ : {invite_link}\n\nᴜᴘᴅᴀᴛᴇᴅ ʙʏ : {message.from_user.username}")
 
 
-@Client.on_message(filters.command(["set_tutorial", "set_tutorial_2", "set_tutorial_3"]))
+@Client.on_message(filters.command("set_tutorial"))
 async def set_tutorial(client, message: Message):
     grp_id = message.chat.id
     title = message.chat.title
@@ -1073,21 +1062,16 @@ async def set_tutorial(client, message: Message):
             f"<b>ᴄᴏᴍᴍᴀɴᴅ ɪɴᴄᴏᴍᴘʟᴇᴛᴇ !!\n\nᴜꜱᴇ ʟɪᴋᴇ ᴛʜɪꜱ -</b>\n\n"
             f"<code>/{message.command[0]} https://t.me/dreamxbotz</code>"
         )
-    if message.command[0] == "set_tutorial":
-        tutorial_key = "tutorial"
-    else:
-        tutorial_key = f"tutorial_{message.command[0].split('_', 2)[2]}"
-
-    await save_group_settings(grp_id, tutorial_key, tutorial_link)
+    await save_group_settings(grp_id, "tutorial", tutorial_link)
     invite_link = await client.export_chat_invite_link(grp_id)
     await message.reply_text(
-        f"<b>ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ᴄʜᴀɴɢᴇᴅ {tutorial_key.replace('_', ' ').title()} ꜰᴏʀ {title}</b>\n\n"
+        f"<b>ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ᴄʜᴀɴɢᴇᴅ ᴛᴜᴛᴏʀɪᴀʟ ꜰᴏʀ {title}</b>\n\n"
         f"ʟɪɴᴋ - {tutorial_link}",
         disable_web_page_preview=True
     )
     await client.send_message(
         LOG_API_CHANNEL,
-        f"#Set_{tutorial_key.title()}_Video\n\n"
+        "#Set_Tutorial_Video\n\n"
         f"ɢʀᴏᴜᴘ ɴᴀᴍᴇ : {title}\n"
         f"ɢʀᴏᴜᴘ ɪᴅ : {grp_id}\n"
         f"ɪɴᴠɪᴛᴇ ʟɪɴᴋ : {invite_link}\n"
@@ -1139,14 +1123,6 @@ async def handle_shortner_command(c, m, shortner_key, api_key, log_prefix, fallb
 async def set_shortner(c, m):
     await handle_shortner_command(c, m, 'shortner', 'api', 'New_Shortner_Set_For_1st_Verify', SHORTENER_WEBSITE, SHORTENER_API)
 
-@Client.on_message(filters.command('set_shortner_2'))
-async def set_shortner_2(c, m):
-    await handle_shortner_command(c, m, 'shortner_two', 'api_two', 'New_Shortner_Set_For_2nd_Verify', SHORTENER_WEBSITE2, SHORTENER_API2)
-
-@Client.on_message(filters.command('set_shortner_3'))
-async def set_shortner_3(c, m):
-    await handle_shortner_command(c, m, 'shortner_three', 'api_three', 'New_Shortner_Set_For_3rd_Verify', SHORTENER_WEBSITE3, SHORTENER_API3)
-
 @Client.on_message(filters.command('set_log_channel'))
 async def set_log(client, message):
     grp_id = message.chat.id
@@ -1184,41 +1160,6 @@ async def set_log(client, message):
     await client.send_message(LOG_API_CHANNEL, log_message, disable_web_page_preview=True) 
 
 
-@Client.on_message(filters.command('set_time'))
-async def set_time(client, message):
-    chat_type = message.chat.type
-    if chat_type not in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
-        return await message.reply_text("<b>ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ ɪɴ ɢʀᴏᴜᴘ...</b>")       
-    grp_id = message.chat.id
-    title = message.chat.title
-    invite_link = await client.export_chat_invite_link(grp_id)
-    if not await is_check_admin(client, grp_id, message.from_user.id):
-        return await message.reply_text(script.NT_ADMIN_ALRT_TXT)
-    try:
-        time = int(message.text.split(" ", 1)[1])
-    except:
-        return await message.reply_text("<b>ᴄᴏᴍᴍᴀɴᴅ ɪɴᴄᴏᴍᴘʟᴇᴛᴇ\n\nᴜꜱᴇ ᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ ʟɪᴋᴇ ᴛʜɪꜱ - <code>/set_time 600</code> [ ᴛɪᴍᴇ ᴍᴜꜱᴛ ʙᴇ ɪɴ ꜱᴇᴄᴏɴᴅꜱ ]</b>")   
-    await save_group_settings(grp_id, 'verify_time', time)
-    await message.reply_text(f"<b>✅️ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ꜱᴇᴛ 2ɴᴅ ᴠᴇʀɪꜰʏ ᴛɪᴍᴇ ꜰᴏʀ {title}\n\nᴛɪᴍᴇ - <code>{time}</code></b>")
-    await client.send_message(LOG_API_CHANNEL, f"#Set_2nd_Verify_Time\n\nɢʀᴏᴜᴘ ɴᴀᴍᴇ : {title}\n\nɢʀᴏᴜᴘ ɪᴅ : {grp_id}\n\nɪɴᴠɪᴛᴇ ʟɪɴᴋ : {invite_link}\n\nᴜᴘᴅᴀᴛᴇᴅ ʙʏ : {message.from_user.username}")
-
-@Client.on_message(filters.command('set_time_2'))
-async def set_time_2(client, message):
-    chat_type = message.chat.type
-    if chat_type not in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
-        return await message.reply_text("<b>ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ ɪɴ ɢʀᴏᴜᴘ...</b>")       
-    grp_id = message.chat.id
-    title = message.chat.title
-    invite_link = await client.export_chat_invite_link(grp_id)
-    if not await is_check_admin(client, grp_id, message.from_user.id):
-        return await message.reply_text(script.NT_ADMIN_ALRT_TXT)
-    try:
-        time = int(message.text.split(" ", 1)[1])
-    except:
-        return await message.reply_text("<b>ᴄᴏᴍᴍᴀɴᴅ ɪɴᴄᴏᴍᴘʟᴇᴛᴇ\n\nᴜꜱᴇ ᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ ʟɪᴋᴇ ᴛʜɪꜱ - <code>/set_time 3600</code> [ ᴛɪᴍᴇ ᴍᴜꜱᴛ ʙᴇ ɪɴ ꜱᴇᴄᴏɴᴅꜱ ]</b>")   
-    await save_group_settings(grp_id, 'third_verify_time', time)
-    await message.reply_text(f"<b>✅️ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ꜱᴇᴛ 3ʀᴅ ᴠᴇʀɪꜰʏ ᴛɪᴍᴇ ꜰᴏʀ {title}\n\nᴛɪᴍᴇ - <code>{time}</code></b>")
-    await client.send_message(LOG_API_CHANNEL, f"#Set_3rd_Verify_Time\n\nɢʀᴏᴜᴘ ɴᴀᴍᴇ : {title}\n\nɢʀᴏᴜᴘ ɪᴅ : {grp_id}\n\nɪɴᴠɪᴛᴇ ʟɪɴᴋ : {invite_link}\n\nᴜᴘᴅᴀᴛᴇᴅ ʙʏ : {message.from_user.username}")
 
 
 @Client.on_message(filters.command('details'))
@@ -1252,16 +1193,8 @@ async def reset_group_callback(client, callback_query):
     defaults = {
         'shortner': SHORTENER_WEBSITE,
         'api': SHORTENER_API,
-        'shortner_two': SHORTENER_WEBSITE2,
-        'api_two': SHORTENER_API2,
-        'shortner_three': SHORTENER_WEBSITE3,
-        'api_three': SHORTENER_API3,
-        'verify_time': TWO_VERIFY_GAP,
-        'third_verify_time': THREE_VERIFY_GAP,
         'template': IMDB_TEMPLATE,
         'tutorial': TUTORIAL,
-        'tutorial_2': TUTORIAL_2,
-        'tutorial_3': TUTORIAL_3,
         'caption': CUSTOM_FILE_CAPTION,
         'log': LOG_CHANNEL,
         'is_verify': IS_VERIFY,
