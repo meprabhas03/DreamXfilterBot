@@ -509,15 +509,9 @@ async def search_gagala(text):
     titles = soup.find_all( 'h3' )
     return [title.getText() for title in titles]
 
-async def get_shortlink(link, grp_id, is_second_shortener=False, is_third_shortener=False):
+async def get_shortlink(link, grp_id):
     settings = await get_settings(grp_id)
-    if is_third_shortener:             
-        api, site = settings['api_three'], settings['shortner_three']
-    else:
-        if is_second_shortener:
-            api, site = settings['api_two'], settings['shortner_two']
-        else:
-            api, site = settings['api'], settings['shortner']
+    api, site = settings['api'], settings['shortner']
     shortzy = Shortzy(api, site)
     try:
         link = await shortzy.convert(link)
@@ -574,24 +568,11 @@ def generate_settings_text(settings, title, reset_done=False):
     note = "\n<b>📌 ɴᴏᴛᴇ :- ʀᴇꜱᴇᴛ ꜱᴜᴄᴄᴇꜱꜱғᴜʟʟʏ ✅</b>" if reset_done else ""
     return f"""<b>⚙️ ʏᴏᴜʀ sᴇᴛᴛɪɴɢs ꜰᴏʀ - {title}</b>
 
-✅️ <b><u>1sᴛ ᴠᴇʀɪꜰʏ sʜᴏʀᴛɴᴇʀ</u></b>
+✅️ <b><u>ᴠᴇʀɪꜰʏ sʜᴏʀᴛɴᴇʀ</u></b>
 <b>ɴᴀᴍᴇ</b> - <code>{settings.get("shortner", "N/A")}</code>
 <b>ᴀᴘɪ</b> - <code>{settings.get("api", "N/A")}</code>
 
-✅️ <b><u>2ɴᴅ ᴠᴇʀɪꜰʏ sʜᴏʀᴛɴᴇʀ</u></b>
-<b>ɴᴀᴍᴇ</b> - <code>{settings.get("shortner_two", "N/A")}</code>
-<b>ᴀᴘɪ</b> - <code>{settings.get("api_two", "N/A")}</code>
-
-✅️ <b><u>𝟹ʀᴅ ᴠᴇʀɪꜰʏ sʜᴏʀᴛɴᴇʀ</u></b>
-<b>ɴᴀᴍᴇ</b> - <code>{settings.get("shortner_three", "N/A")}</code>
-<b>ᴀᴘɪ</b> - <code>{settings.get("api_three", "N/A")}</code>
-
-⏰ <b>2ɴᴅ ᴠᴇʀɪꜰɪᴄᴀᴛɪᴏɴ ᴛɪᴍᴇ</b> - <code>{settings.get("verify_time", "N/A")}</code>
-⏰ <b>𝟹ʀᴅ ᴠᴇʀɪꜰɪᴄᴀᴛɪᴏɴ ᴛɪᴍᴇ</b> - <code>{settings.get("third_verify_time", "N/A")}</code>
-
-1️⃣ <b>ᴛᴜᴛᴏʀɪᴀʟ ʟɪɴᴋ 1</b> - {settings.get("tutorial", TUTORIAL)}
-2️⃣ <b>ᴛᴜᴛᴏʀɪᴀʟ ʟɪɴᴋ 2</b> - {settings.get("tutorial_2", TUTORIAL_2)}
-3️⃣ <b>ᴛᴜᴛᴏʀɪᴀʟ ʟɪɴᴋ 3</b> - {settings.get("tutorial_3", TUTORIAL_3)}
+1️⃣ <b>ᴛᴜᴛᴏʀɪᴀʟ ʟɪɴᴋ</b> - {settings.get("tutorial", TUTORIAL)}
 
 📝 <b>ʟᴏɢ ᴄʜᴀɴɴᴇʟ ɪᴅ</b> - <code>{settings.get("log", "N/A")}</code>
 🚫 <b>ꜰꜱᴜʙ ᴄʜᴀɴɴᴇʟ ɪᴅ</b> - <code>{settings.get("fsub", "N/A")}</code>
